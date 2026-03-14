@@ -14,7 +14,6 @@
     ],
     "main": "./out/extension.js",
     "contributes": {
-
         "grammars": [
             {
                 "scopeName": "text.html.htl",
@@ -33,8 +32,11 @@
         "lint": "eslint src --ext ts"
     },
     "devDependencies": {
-        "@types/vscode": "^1.80.0",
         "@types/node": "18.x",
+        "@types/vscode": "^1.80.0",
         "typescript": "^5.1.3"
+    },
+    "dependencies": {
+        "fast-xml-parser": "^5.5.5"
     }
 }

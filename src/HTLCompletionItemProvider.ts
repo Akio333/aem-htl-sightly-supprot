@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 
 export class HTLCompletionItemProvider implements vscode.CompletionItemProvider {
     
@@ -119,6 +120,19 @@ export class HTLCompletionItemProvider implements vscode.CompletionItemProvider 
                 });
             }
 
+            // Check if typing properties.*
+            const propsRegex = /properties\.$/;
+            const propsMatch = linePrefix.match(propsRegex);
+            if (propsMatch) {
+                const dialogProps = await this.getDialogProperties(document.uri);
+                dialogProps.forEach(prop => {
+                    const item = new vscode.CompletionItem(prop, vscode.CompletionItemKind.Property);
+                    item.detail = 'Dialog Property';
+                    completionItems.push(item);
+                });
+                return completionItems;
+            }
+
             // Check if typing a model variable: eq. `myModel.`
             const dotRegex = /([a-zA-Z0-9_]+)\.$/;
             const dotMatch = linePrefix.match(dotRegex);
@@ -139,6 +153,42 @@ export class HTLCompletionItemProvider implements vscode.CompletionItemProvider 
         }
 
         return completionItems;
+    }
+
+    private async getDialogProperties(docUri: vscode.Uri): Promise<string[]> {
+        const dialogProps = new Set<string>();
+        try {
+            // Assume the HTL file is in the component folder. Component folder might be the active file's folder.
+            const componentDir = path.dirname(docUri.fsPath);
+            const dialogPaths = [
+                path.join(componentDir, '_cq_dialog', '.content.xml'),
+                path.join(componentDir, 'cq:dialog', '.content.xml')
+            ];
+
+            for (const dialogPath of dialogPaths) {
+                try {
+                    const uri = vscode.Uri.file(dialogPath);
+                    const content = (await vscode.workspace.fs.readFile(uri)).toString();
+                    
+                    // Simple regex extraction for name="./propertyName"
+                    // Doing regex because we don't want to add bulky XML parsers to the extension if we can avoid it
+                    const nameRegex = /name="(?:.\/)?([^"]+)"/g;
+                    let match;
+                    while ((match = nameRegex.exec(content)) !== null) {
+                        const propName = match[1];
+                        // exclude slashes, at signs, or implicit references
+                        if (!propName.includes('/') && !propName.startsWith('@')) {
+                            dialogProps.add(propName);
+                        }
+                    }
+                } catch (e) {
+                    // Try next path if not found
+                }
+            }
+        } catch (e) {
+            console.error('Failed to get dialog properties', e);
+        }
+        return Array.from(dialogProps);
     }
 
     private async getModelProperties(className: string): Promise<string[]> {
