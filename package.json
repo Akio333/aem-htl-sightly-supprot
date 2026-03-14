@@ -2,6 +2,7 @@
     "name": "aem-htl-sightly-support",
     "displayName": "AEM HTL Sightly Support",
     "description": "VS Code extension to provide support for AEM HTL (Sightly) files",
+    "publisher": "Akio333",
     "version": "0.0.1",
     "engines": {
         "vscode": "^1.80.0"
@@ -38,5 +39,6 @@
     },
     "dependencies": {
         "fast-xml-parser": "^5.5.5"
-    }
+    },
+    "repository": "git@github.com:Akio333/aem-htl-sightly-supprot.git"
 }
