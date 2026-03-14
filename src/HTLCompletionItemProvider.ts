@@ -1,0 +1,129 @@
+import * as vscode from 'vscode';
+
+export class HTLCompletionItemProvider implements vscode.CompletionItemProvider {
+    
+    private sightlyAttributes = [
+        'data-sly-use',
+        'data-sly-unwrap',
+        'data-sly-text',
+        'data-sly-attribute',
+        'data-sly-element',
+        'data-sly-test',
+        'data-sly-set',
+        'data-sly-list',
+        'data-sly-repeat',
+        'data-sly-resource',
+        'data-sly-include',
+        'data-sly-template',
+        'data-sly-call'
+    ];
+
+    public async provideCompletionItems(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        token: vscode.CancellationToken,
+        context: vscode.CompletionContext
+    ): Promise<vscode.CompletionItem[]> {
+        const linePrefix = document.lineAt(position).text.substr(0, position.character);
+        const completionItems: vscode.CompletionItem[] = [];
+
+        // 1. Auto complete for data-sly-* tags
+        if (linePrefix.endsWith('data-sly-') || linePrefix.endsWith('<sly ')) {
+            this.sightlyAttributes.forEach(attr => {
+                const item = new vscode.CompletionItem(attr, vscode.CompletionItemKind.Property);
+                completionItems.push(item);
+            });
+            return completionItems;
+        }
+
+        // 2. Java model path auto complete for data-sly-use
+        const useRegex = /data-sly-use(?:\.[a-zA-Z0-9_]+)?=(["'])$/;
+        const useMatch = linePrefix.match(useRegex);
+        if (useMatch) {
+            // Provide java classes
+            const javaFiles = await vscode.workspace.findFiles('**/*.java', '**/node_modules/**');
+            
+            for (const file of javaFiles) {
+                try {
+                    const content = (await vscode.workspace.fs.readFile(file)).toString();
+                    const packageMatch = content.match(/package\s+([a-zA-Z0-9_.]+);/);
+                    const classMatch = content.match(/public\s+class\s+([a-zA-Z0-9_]+)/);
+                    
+                    if (packageMatch && classMatch) {
+                        const fullyQualifiedName = `${packageMatch[1]}.${classMatch[1]}`;
+                        const item = new vscode.CompletionItem(fullyQualifiedName, vscode.CompletionItemKind.Class);
+                        item.detail = 'Java Model';
+                        completionItems.push(item);
+                    }
+                } catch (e) {
+                    // Ignore read errors
+                }
+            }
+            return completionItems;
+        }
+
+        // 3. Completion support for Model or properties items
+        // Find previously defined models in the current document
+        const documentText = document.getText();
+        const modelVarRegex = /data-sly-use\.([a-zA-Z0-9_]+)=["']([^"']+)["']/g;
+        let match;
+        const models: Record<string, string> = {};
+        
+        while ((match = modelVarRegex.exec(documentText)) !== null) {
+            models[match[1]] = match[2];
+        }
+
+        // Check if typing a model variable: eq. `myModel.`
+        const dotRegex = /([a-zA-Z0-9_]+)\.$/;
+        const dotMatch = linePrefix.match(dotRegex);
+        if (dotMatch) {
+            const varName = dotMatch[1];
+            if (models[varName]) {
+                const className = models[varName];
+                // Find properties for this model
+                const props = await this.getModelProperties(className);
+                props.forEach(prop => {
+                    const item = new vscode.CompletionItem(prop, vscode.CompletionItemKind.Property);
+                    item.detail = `Property of ${className}`;
+                    completionItems.push(item);
+                });
+                return completionItems;
+            }
+        }
+
+        return completionItems;
+    }
+
+    private async getModelProperties(className: string): Promise<string[]> {
+        const properties: string[] = [];
+        const classNameOnly = className.includes('.') ? className.split('.').pop()! : className;
+        
+        const files = await vscode.workspace.findFiles(`**/${classNameOnly}.java`, '**/node_modules/**');
+        
+        if (files.length > 0) {
+            const file = files[0];
+            const content = (await vscode.workspace.fs.readFile(file)).toString();
+            
+            // Extract getters
+            // e.g. public String getTitle() -> title
+            const getterRegex = /public\s+[a-zA-Z0-9_<>\[\]]+\s+get([A-Z][a-zA-Z0-9_]*)\s*\(\)/g;
+            let match;
+            while ((match = getterRegex.exec(content)) !== null) {
+                const propStr = match[1];
+                const propName = propStr.charAt(0).toLowerCase() + propStr.slice(1);
+                properties.push(propName);
+            }
+
+            // Extract is boolean getters
+            // e.g. public boolean isActive() -> active
+            const isRegex = /public\s+boolean\s+is([A-Z][a-zA-Z0-9_]*)\s*\(\)/g;
+            while ((match = isRegex.exec(content)) !== null) {
+                const propStr = match[1];
+                const propName = propStr.charAt(0).toLowerCase() + propStr.slice(1);
+                properties.push(propName);
+            }
+        }
+        
+        return properties;
+    }
+}
