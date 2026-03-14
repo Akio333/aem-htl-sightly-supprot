@@ -13,7 +13,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.languages.registerCompletionItemProvider(
             documentSelector,
             new HTLCompletionItemProvider(),
-            '-', '.', '"', '\'' // trigger characters
+            '-', '.', '"', '\'', '@' // trigger characters
         )
     );
 

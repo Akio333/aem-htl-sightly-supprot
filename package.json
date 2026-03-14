@@ -14,18 +14,9 @@
     ],
     "main": "./out/extension.js",
     "contributes": {
-        "languages": [
-            {
-                "id": "html",
-                "extensions": [
-                    ".html"
-                ],
-                "configuration": "./language-configuration.json"
-            }
-        ],
+
         "grammars": [
             {
-                "language": "html",
                 "scopeName": "text.html.htl",
                 "path": "./syntaxes/htl.tmLanguage.json",
                 "injectTo": [

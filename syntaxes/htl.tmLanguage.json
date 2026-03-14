@@ -6,12 +6,6 @@
     "patterns": [
         {
             "include": "#expressions"
-        },
-        {
-            "include": "#sightly-tags"
-        },
-        {
-            "include": "#sightly-attributes"
         }
     ],
     "repository": {
@@ -55,14 +49,6 @@
                     "name": "variable.other.object.htl"
                 }
             ]
-        },
-        "sightly-tags": {
-            "match": "(<sly\\b.*?>)|(</sly>)",
-            "name": "entity.name.tag.htl"
-        },
-        "sightly-attributes": {
-            "match": "\\b(data-sly-(use|unwrap|text|attribute|element|test|set|list|repeat|resource|include|template|call))\\b",
-            "name": "entity.other.attribute-name.htl"
         }
     }
 }
